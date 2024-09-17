@@ -2,6 +2,9 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/drivers/sensor.h>
 
+/* Get a handle to the temperature sensor device */
+const struct device *temp_sensor = DEVICE_DT_GET_ANY(nordic_nrf_temp);
+
 #define SERVICE_DATA_LEN 9
 #define SERVICE_UUID 0xfcd2 /* BTHome service UUID */
 #define IDX_TEMPL 4			/* Index of lo byte of temp in service data*/
@@ -27,44 +30,29 @@ static struct bt_data ad[] = {
 	BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 	BT_DATA(BT_DATA_SVC_DATA16, service_data, ARRAY_SIZE(service_data))};
 
-static int read_temperature(struct device *temp_dev, struct sensor_value *float_val)
+static int read_temperature_internal(const struct device *temp_dev)
 {
-
-	const char *name = temp_dev->name;
-
 	struct sensor_value temp_val;
+	int err;
 
-	int ret;
-
-	ret = sensor_sample_fetch(temp_dev);
-
-	if (ret)
+	/* Fetch temperature data from the sensor */
+	err = sensor_sample_fetch(temp_sensor);
+	if (err)
 	{
-
-		printk("%s: I/O error: %d", name, ret);
-
-		return ret;
+		printk("Failed to fetch temperature sample (%d)\n", err);
 	}
 
-	ret = sensor_channel_get(temp_dev, SENSOR_CHAN_DIE_TEMP, &temp_val);
-
-	if (ret)
+	/* Get the temperature value */
+	err = sensor_channel_get(temp_sensor, SENSOR_CHAN_DIE_TEMP, &temp_val);
+	if (err)
 	{
-
-		printk("%s: can't get data: %d", name, ret);
-
-		return ret;
+		printk("Failed to get temperature channel value (%d)\n", err);
 	}
 
-	// printk("%s: read %d.%d C\n", name, temp_val.val1, temp_val.val2);
+	/* Print the temperature in Celsius */
+	printk("Temperature: %.2f°C\n", sensor_value_to_double(&temp_val));
 
-	float_val->val1 = temp_val.val1;
-
-	float_val->val2 = temp_val.val2;
-
-	// generic_data[3] = temp_val.val1;
-
-	return 0;
+	return temp_val.val1 * 100 + temp_val.val2 / 10000;
 }
 
 static void bt_ready(int err)
@@ -104,18 +92,17 @@ int main(void)
 	for (;;)
 	{
 		/* Simulate temperature from 0C to 25C */
-		// mpsl_temperature_get();
-		service_data[IDX_TEMPH] = (temp * 100) >> 8;
-		service_data[IDX_TEMPL] = (temp * 100) & 0xff;
-		if (temp++ == 25)
-		{
-			temp = 0;
-		}
+		temp = read_temperature_internal(temp_sensor);
+		service_data[IDX_TEMPH] = (temp) >> 8;
+		service_data[IDX_TEMPL] = (temp) & 0xff;
+
 		err = bt_le_adv_update_data(ad, ARRAY_SIZE(ad), NULL, 0);
+
 		if (err)
 		{
 			printk("Failed to update advertising data (err %d)\n", err);
 		}
+
 		k_sleep(K_MSEC(BT_GAP_ADV_SLOW_INT_MIN));
 	}
 	return 0;
