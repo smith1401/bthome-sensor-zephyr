@@ -1,14 +1,20 @@
-#
-# Copyright (c) 2023 Nordic Semiconductor ASA
-#
-# SPDX-License-Identifier: Apache-2.0
+# #
+# # Copyright (c) 2023 Nordic Semiconductor ASA
+# #
+# # SPDX-License-Identifier: Apache-2.0
+# 
+# This CMake file is picked by the Zephyr build system because it is defined
+# as the module CMake entry point (see zephyr/module.yml).
 
-cmake_minimum_required(VERSION 3.20.0)
 
-find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(bthome_sensor_template)
+set(BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-FILE(GLOB app_sources src/*.c)
-target_sources(app PRIVATE ${app_sources})
+# This is needed so that custom driver classes using system calls are taken into
+# account
+list(APPEND ZEPHYR_EXTRA_MODULES
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+# zephyr_syscall_include_directories(include)
+zephyr_include_directories(include)
 
-target_include_directories(app PRIVATE include)
+add_subdirectory(lib)

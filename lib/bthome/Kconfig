@@ -1,0 +1,18 @@
+# Copyright (c) 2021 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+config BTHOME
+	bool "Libary for advertising BThome packets"
+
+if BTHOME
+
+config BTHOME_ADVERTISING_INTERVAL_MS
+	int "Interval in milliseconds for BTHome advertising"
+	default 1000
+
+module=BTHOME
+module-dep=LOG
+module-str=BTHome library
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif # BTHOME

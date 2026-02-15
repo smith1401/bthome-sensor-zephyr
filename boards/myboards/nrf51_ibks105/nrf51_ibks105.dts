@@ -1,0 +1,164 @@
+/*
+ * Copyright (c) 2017 Linaro Limited
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <nordic/nrf51822_qfaa.dtsi>
+#include "nrf51_ibks105-pinctrl.dtsi"
+
+/ {
+	model = "Accent Systems iBKS105";
+	compatible = "accent_systems,ibks105";
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,bt-mon-uart = &uart0;
+		zephyr,bt-c2h-uart = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+	};
+
+	rtt0: rtt_chan0 {
+		compatible = "segger,rtt-uart";
+		status = "okay";
+	};
+
+	zephyr,user {
+		io-channels = <&adc 0>;
+	};
+
+	aliases {
+		led0 = &led0;
+		watchdog0 = &wdt0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led0: led_0 {
+			gpios = <&gpio0 19 0>;
+			label = "LED";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+		energy_pd: energy_pd {
+			// P0.07.
+			gpios = <&gpio0 7 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "Energy Photodiode";
+		};
+	};
+
+	w1: w1 {
+		compatible = "zephyr,w1-gpio";
+		gpios = <&gpio0 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN | GPIO_PULL_UP)>;
+		
+		ds18b20: ds18b20 {
+			compatible = "maxim,ds18b20";
+			family-code = <0x28>;
+			resolution = <12>;
+			status = "okay";
+		};
+		
+		power {
+			compatible = "power-domain,power-domain-gpio";
+			enable-gpios = <&gpio0 9 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		};
+	};
+
+	aliases {
+		dht0 = &aht10;
+		bmp280 = &bme280;
+		ds18 = &ds18b20;
+		bh1750 = &bh1750;
+	};
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+	// For low-power EDGE interrupts.
+	// See github.com/zephyrproject-rtos/zephyr/issues/28499.
+	sense-edge-mask = <0xffffffff>;
+};
+
+&uart0 {
+	current-speed = <115200>;
+	// status = "disabled";
+	status = "okay";
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-1 = <&uart0_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "ok";
+
+	// Battery.
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_3";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_ADC_AIN7>;
+		// zephyr,input-positive = <NRF_SAADC_VDD>;
+		zephyr,resolution = <10>;
+	};
+};
+
+&i2c0 {
+	compatible = "nordic,nrf-twi";
+	status = "okay";
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	aht10: aht10@38 {
+		compatible = "aosong,dht20";
+		reg = <0x38>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	bme280: bme280@77 {
+		/* 0x76 - SDO <-> GND */
+		/* 0x77 - SDO <-> VCC */
+		compatible = "bosch,bme280";
+		reg = <0x77>;
+	};
+
+	bh1750: bh1750@5c {
+		/* 0x23 - ADDR <-> GND/FLOATING */
+		/* 0x5c - ADDR <-> VCC */
+		compatible = "rohm,bh1750";
+		reg = <0x23>;
+	};
+};
+
+sd_spi: &spi0 {
+	compatible = "nordic,nrf-spi";
+	status = "okay";
+	pinctrl-0 = <&spi0_default>;
+	pinctrl-1 = <&spi0_sleep>;
+	pinctrl-names = "default", "sleep";
+	cs-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+
+	sdhc0: sdhc@0 {
+		compatible = "zephyr,sdhc-spi-slot";
+		reg = <0>;
+		status = "okay";
+		spi-max-frequency = <8000000>;
+		mmc {
+			compatible = "zephyr,sdmmc-disk";
+			status = "okay";
+		};
+	};
+};

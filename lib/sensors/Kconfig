@@ -1,0 +1,15 @@
+# Copyright (c) 2021 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+config SENSORS
+	bool "Libary for sensor connection"
+	select ADC
+	select SENSOR
+if SENSORS
+
+module=SENSORS
+module-dep=LOG
+module-str=Sensors library
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif # SENSORS
